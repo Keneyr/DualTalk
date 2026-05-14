@@ -7,6 +7,15 @@ import subprocess
 import tempfile
 import time
 
+# Select OpenGL backend before importing pyrender/OpenGL.
+# If /dev/dri is not accessible (common on shared servers), prefer osmesa.
+if platform.system() == "Linux" and "PYOPENGL_PLATFORM" not in os.environ:
+    dri_node = "/dev/dri/renderD128"
+    if os.path.exists(dri_node) and os.access(dri_node, os.R_OK | os.W_OK):
+        os.environ["PYOPENGL_PLATFORM"] = "egl"
+    else:
+        os.environ["PYOPENGL_PLATFORM"] = "osmesa"
+
 import cv2
 import imageio
 import librosa
@@ -35,9 +44,51 @@ try:
 except:
     Mesh = None
 
-if platform.system() == "Linux":
-    # os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-    os.environ['PYOPENGL_PLATFORM'] = 'egl'
+if Mesh is None:
+    # Lightweight fallback wrapper around trimesh.Trimesh when psbody.mesh is unavailable.
+    # Provides `.v` (vertices) and `.f` (faces) used throughout the code.
+    class Mesh:
+        def __init__(self, filename=None, v=None, f=None):
+            # Support calls:
+            #  - Mesh(filename='path.ply')
+            #  - Mesh(vertices_array, faces_array)  # positional
+            #  - Mesh(v=vertices_array, f=faces_array)
+            # If first positional arg is array-like, treat it as vertices.
+            if filename is not None and not isinstance(filename, (str, bytes)):
+                # Called like Mesh(vertices, faces)
+                verts = np.asarray(filename)
+                faces = np.asarray(v) if v is not None else (np.asarray(f) if f is not None else None)
+                if faces is None:
+                    raise ValueError('Mesh requires both vertices and faces when called with arrays')
+                self.v = verts.copy()
+                self.f = faces.copy()
+                return
+
+            if filename:
+                # load from file path or trimesh.Trimesh
+                if isinstance(filename, trimesh.Trimesh):
+                    tm = filename
+                else:
+                    tm = trimesh.load(filename, process=False)
+                    if hasattr(tm, 'geometry') and isinstance(tm.geometry, dict) and len(tm.geometry) > 0:
+                        tm = list(tm.geometry.values())[0]
+                self.v = np.asarray(tm.vertices).copy()
+                self.f = np.asarray(tm.faces).copy()
+            else:
+                # allow construction via keywords v and f
+                if v is not None and f is not None:
+                    self.v = np.asarray(v).copy()
+                    self.f = np.asarray(f).copy()
+                else:
+                    self.v = np.zeros((0, 3), dtype=float)
+                    self.f = np.zeros((0, 3), dtype=int)
+
+        # minimal API compatibility
+        def copy(self):
+            m = Mesh()
+            m.v = self.v.copy()
+            m.f = self.f.copy()
+            return m
 
 # export HF_ENDPOINT=https://hf-mirror.com
 # os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
@@ -380,7 +431,7 @@ def main():
     jaw_pose_params=jaw,
     eyelid_params=None
     )
-    animate(vertices.cpu().numpy(), wav_path, file_name1, ply_path, fps=25, vertice_gt=None, use_tqdm=True, multi_process=True)
+    animate(vertices.cpu().numpy(), wav_path, file_name1, ply_path, fps=25, vertice_gt=None, use_tqdm=True, multi_process=False)
 
     data_name = args.audio1_path.split('/')[-1].replace('.wav', '')
     prediction = np.load(os.path.join(args.result_path, "{}.npy".format(data_name)))
@@ -409,7 +460,7 @@ def main():
             jaw_pose_params=jaw,
             eyelid_params=None
         )
-    animate(vertices.cpu().numpy(), wav_path, file_name2, ply_path, fps=25, vertice_gt=None, use_tqdm=True, multi_process=True)
+    animate(vertices.cpu().numpy(), wav_path, file_name2, ply_path, fps=25, vertice_gt=None, use_tqdm=True, multi_process=False)
     video1_path = file_name1
     video2_path = file_name2
     output_video = file_name2.replace("_render.mp4", ".mp4")

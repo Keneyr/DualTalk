@@ -1,0 +1,21 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+# Local environment and editor state
+.venv/
+venv/
+.env
+.vscode/
+
+# Generated model/data/artifact outputs
+model/
+result_DualTalk/
+render/data/
+*.mp4
+*.pth
+*.pt
+*.ckpt
+
+# Notebook checkpoints
+.ipynb_checkpoints/

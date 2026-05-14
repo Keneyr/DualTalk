@@ -25,7 +25,7 @@ Official PyTorch implementation for the paper:
 ## **Environment**
 
 - Linux
-- Python 3.6+
+- Python 3.8.8 (or another 3.8.x environment)
 - Pytorch 1.12.1
 - CUDA 11.3
 - ffmpeg

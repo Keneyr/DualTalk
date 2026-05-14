@@ -1,4 +1,4 @@
-# Pinned requirements generated from dualtalk environment for direct project deps
+# Direct top-level pip dependencies for DualTalk
 transformers==4.26.0
 librosa==0.11.0
 moviepy==1.0.3
@@ -12,5 +12,3 @@ tqdm==4.67.3
 soundfile==0.13.1
 sounddevice==0.5.5
 opencv-python==4.13.0.92
-
-# For full reproducibility see requirements.frozen.txt and environment.yml
